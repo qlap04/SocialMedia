@@ -1,0 +1,27 @@
+# Node modules
+node_modules/
+
+# Tệp biên dịch TypeScript
+# /dist
+# /build
+# /lib
+
+# Tệp cấu hình TypeScript
+tsconfig.tsbuildinfo
+
+# Tệp logs
+*.log
+
+# Tệp môi trường (các tệp chứa thông tin nhạy cảm như database URL, API keys, v.v.)
+.env
+
+# IDE / Editor configuration files
+.vscode/
+.idea/
+
+# Thư mục npm cache
+.npm/
+
+# Thư mục tạm thời của OS (có thể là các thư mục tạm thời do OS tạo ra)
+.DS_Store
+Thumbs.db

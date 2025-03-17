@@ -1,0 +1,51 @@
+{
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "outDir": "./dist", // Biên dịch sang thư mục dist
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        // "typeRoots": [
+        //     "@types",
+        //     "node_modules/@types"
+        // ],
+        "baseUrl": ".", // Đảm bảo rằng baseUrl là thư mục gốc
+        "paths": {
+            "@/*": [
+                "src/*"
+            ], // Cấu hình alias cho thư mục src
+            "@config/*": [
+                "src/config/*"
+            ], // Đảm bảo alias @config sẽ trỏ đến src/config
+            "@controllers/*": [
+                "src/api/v1/controllers/*"
+            ], // Alias cho controllers
+            "@routes/*": [
+                "src/api/v1/routes/*"
+            ],
+            "@middlewares/*": [
+                "src/api/v1/middlewares/*"
+            ],
+            "@models/*": [
+                "src/api/v1/models/*"
+            ],
+            "@services/*": [
+                "src/api/v1/auth/services/*"
+            ],
+            "@interfaces/*": [
+                "src/api/v1/interfaces/*"
+            ],
+            "@utils/*": [
+                "src/api/v1/utils/*"
+            ],
+        }
+    },
+    "include": [
+        "src/**/*.ts",
+    ],
+    "exclude": [
+        "node_modules"
+    ],
+}
