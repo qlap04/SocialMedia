@@ -6,6 +6,8 @@ export const STATUS_CODES = {
 };
 
 export const MESSAGES = {
+    
+    //AUTH
     ROLE_NOT_FOUND: 'Role not found',
     USER_NOT_FOUND: 'Role not found',
 
@@ -39,5 +41,16 @@ export const MESSAGES = {
     INVALID_TOKEN: 'Invalid token',
     UNAUTHORIZED: 'Unauthorized',
     DONT_HAVE_PERMISSION: 'You do not have permission to perform this action',
-    CHECK_ROLE_FAIL: 'Check Role Fail'
+    CHECK_ROLE_FAIL: 'Check Role Fail',
+
+
+
+
+
+
+    //////////POST
+    NOTHING_UPLOAD: 'Nothing uploads',
+    MAX_FILE: 'Maximum 5 files allowed',
+    
+
 };

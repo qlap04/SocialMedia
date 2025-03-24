@@ -24,10 +24,10 @@ const generateAndSendOtpService = async (email: string) => {
         // Gửi OTP qua email
         await sendOtpEmail(user.email, otp);
 
-        return successResponse(MESSAGES.OTP_SEND_SUCCESS, null);
+        return successResponse(MESSAGES.OTP_SEND_SUCCESS, null, null);
     } catch (error) {
         console.error('Error generating and sending OTP:', error);
-        return errorResponse(MESSAGES.OTP_SEND_FAILED, null);
+        return errorResponse(MESSAGES.OTP_SEND_FAILED, null, null);
     }
 };
 
@@ -36,7 +36,7 @@ const verifyOtpService = async (email: string, otp: string) => {
     try {
         const user = await User.findOne({ email });
         if (!user) {
-            return errorResponse(MESSAGES.USER_NOT_FOUND, null);
+            return errorResponse(MESSAGES.USER_NOT_FOUND, null, null);
         }
 
         //OTP
@@ -44,11 +44,11 @@ const verifyOtpService = async (email: string, otp: string) => {
         const storedOtp = await redisClient.get(otpKey);
 
         if (!storedOtp) {
-            return errorResponse(MESSAGES.OTP_EXPIRED_OR_NOT_FOUND, null);
+            return errorResponse(MESSAGES.OTP_EXPIRED_OR_NOT_FOUND, null, null);
         }
 
         if (storedOtp !== otp) {
-            return errorResponse(MESSAGES.OTP_VERIFY_FAILED, null);
+            return errorResponse(MESSAGES.OTP_VERIFY_FAILED, null, null);
         }
 
         await redisClient.del(otpKey);
@@ -60,10 +60,10 @@ const verifyOtpService = async (email: string, otp: string) => {
         // Trusted device feature by refreshToken
         const refreshKey = `refresh:${user._id}`;
         await redisClient.setEx(refreshKey, 7 * 24 * 60 * 60, refreshToken);
-        return successResponse(MESSAGES.OTP_VERIFY_SUCCESS, { access_token: accessToken, refresh_token: refreshToken, status: STATUS_CODES.OK });
+        return successResponse(MESSAGES.OTP_VERIFY_SUCCESS, { access_token: accessToken, refresh_token: refreshToken }, null);
     } catch (error) {
         console.error('Error verifying OTP:', error);
-        return errorResponse(MESSAGES.OTP_VERIFY_FAILED, { status: STATUS_CODES.SERVER_ERROR });
+        return errorResponse(MESSAGES.OTP_VERIFY_FAILED, null, STATUS_CODES.SERVER_ERROR);
     }
 };
 

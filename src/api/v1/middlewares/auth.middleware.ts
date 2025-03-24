@@ -22,13 +22,13 @@ const authMiddleware = (req: CustomRequest, res: Response, next: NextFunction) =
     const token = authHeader?.split(' ')[1] || req.cookies.accessToken;
 
     if (!token) {
-        res.status(401).json(errorResponse(MESSAGES.NO_TOKEN_PROVIDED, { status: STATUS_CODES.BAD_REQUEST }));
+        res.status(401).json(errorResponse(MESSAGES.NO_TOKEN_PROVIDED, null, STATUS_CODES.BAD_REQUEST));
         return
     }
 
     jwt.verify(token, ENV.JWT_ACCESS_SECRET, (err, user) => {
         if (err) {
-            res.status(403).json(errorResponse(MESSAGES.INVALID_TOKEN, { status: STATUS_CODES.BAD_REQUEST }));
+            res.status(403).json(errorResponse(MESSAGES.INVALID_TOKEN, null, STATUS_CODES.BAD_REQUEST));
             return
         }
         req.user = user;
@@ -40,18 +40,18 @@ const checkRole = (allowedRoles: number) => {
     return async (req: CustomRequest, res: Response, next: NextFunction) => {
         try {
             if (!req.user) {
-                res.status(401).json(errorResponse(MESSAGES.UNAUTHORIZED, { status: STATUS_CODES.BAD_REQUEST }));
+                res.status(401).json(errorResponse(MESSAGES.UNAUTHORIZED, null, STATUS_CODES.BAD_REQUEST));
                 return
             }
             const role = await Role.findOne({ roleId: req.user.roleId });
             if (role.roleId !== allowedRoles) {
-                res.status(403).json(errorResponse(MESSAGES.DONT_HAVE_PERMISSION, { status: STATUS_CODES.BAD_REQUEST }));
+                res.status(403).json(errorResponse(MESSAGES.DONT_HAVE_PERMISSION, null, STATUS_CODES.BAD_REQUEST));
                 return
             }
 
             next()
         } catch (error) {
-            res.status(500).json(errorResponse(MESSAGES.CHECK_ROLE_FAIL, { status: STATUS_CODES.BAD_REQUEST }))
+            res.status(500).json(errorResponse(MESSAGES.CHECK_ROLE_FAIL, null, STATUS_CODES.BAD_REQUEST))
             return
         }
     }

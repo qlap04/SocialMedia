@@ -30,10 +30,6 @@ export interface IFriendship extends Document {
     friendList: mongoose.Types.ObjectId[];
 }
 
-export interface IBlockList extends Document {
-    userId: mongoose.Types.ObjectId;
-    friendList: mongoose.Types.ObjectId[];
-}
 
 export interface IContactRequest extends Document {
     receiverId: mongoose.Types.ObjectId;
@@ -47,8 +43,8 @@ export interface ILikeList extends Document {
 }
 
 export interface IPost extends Document {
+    userId: mongoose.Types.ObjectId;
     title: string;
-    type: string;
     media_url: string[]
     commentList: mongoose.Types.ObjectId[];
     likeList: mongoose.Types.ObjectId[];

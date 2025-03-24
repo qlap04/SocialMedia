@@ -6,7 +6,8 @@ import cookieParser from 'cookie-parser';
 import { connectDB } from '../src/shared/config/db.config'
 import { connectRedis } from './shared/config/redis.config';
 import AuthRouter from './api/v1/auth/auth.route';
-
+import postRouter from './api/v1/post/post.router';
+import friendRouter from './api/v1/friend/friend.route';
 // import otpRouter from '@routes/otp.route';
 
 
@@ -41,6 +42,9 @@ connectRedis()
 //api endpoints
 
 app.use('/api/v1/auth', AuthRouter);
+app.use('/api/v1/post', postRouter)
+app.use('/api/v1/friend', friendRouter);
+
 // app.use('/api/v1/product', productRouter)
 // app.use('/api/v1/otp', otpRouter);
 app.listen(port, () => {

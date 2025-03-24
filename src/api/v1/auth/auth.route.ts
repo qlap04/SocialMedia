@@ -6,7 +6,7 @@ import {
     logoutUserController,
     verifyOtpController
 } from "./auth.controller";
-
+import { authMiddleware } from "../middlewares/auth.middleware";
 const AuthRouter = Router();
 
 AuthRouter.post("/register", registerUserController);

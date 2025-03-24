@@ -1,27 +1,20 @@
 export interface ApiResponse<T> {
     success: boolean;
     message: string;
-    data: T;
+    data: T | null;
+    status: number;
 }
 
-export function successResponse<T>(message: string, data: T): ApiResponse<T> {
-    if (!message || typeof message !== 'string') {
-        throw new Error('Message must be a non-empty string');
-    }
-    return {
-        success: true,
-        message: message,
-        data
-    };
-}
+const validateMessage = (message: string): void => {
+    if (!message || typeof message !== 'string') throw new Error('Message must be a non-empty string');
+};
 
-export function errorResponse<T>(message: string, data: T): ApiResponse<T> {
-    if (!message || typeof message !== 'string') {
-        throw new Error('Message must be a non-empty string');
-    }
-    return {
-        success: false,
-        message: message,
-        data
-    };
-}
+export const successResponse = <T>(message: string, data: T | null, status: number): ApiResponse<T> => {
+    validateMessage(message);
+    return { success: true, message, data, status };
+};
+
+export const errorResponse = <T>(message: string, data: T | null, status: number): ApiResponse<T> => {
+    validateMessage(message);
+    return { success: false, message, data, status };
+};

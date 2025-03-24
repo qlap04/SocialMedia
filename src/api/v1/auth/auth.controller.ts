@@ -14,7 +14,6 @@ import { LoginUserDto } from "./dto/loginUser.dto";
 import User from "./entities/user.entity";
 import mongoose from "mongoose";
 
-
 export const registerUserController = async (req: Request, res: Response) => {
     try {
         const registerData: CreateUserDto = req.body
@@ -22,12 +21,12 @@ export const registerUserController = async (req: Request, res: Response) => {
         if (response.success) {
             res.cookie('accessToken', response.data.access_token, COOKIE_OPTIONS);
             res.cookie('refreshToken', response.data.refresh_token, COOKIE_OPTIONS);
-            res.status(200).json(response);
+            res.status(STATUS_CODES.CREATED).json(response);
             return
         }
 
     } catch (error) {
-        res.status(500).json(errorResponse((error as Error).message, null))
+        res.status(500).json(errorResponse((error as Error).message, null, STATUS_CODES.SERVER_ERROR))
     }
 };
 
@@ -39,13 +38,13 @@ export const loginUserController = async (req: Request, res: Response) => {
         if (response.success) {
             res.cookie('accessToken', response.data.access_token, COOKIE_OPTIONS);
             res.cookie('refreshToken', response.data.refresh_token, COOKIE_OPTIONS);
-            res.status(200).json(response);
+            res.status(STATUS_CODES.OK).json(response);
             return
         }
-        res.status(401).json(response);
+        res.status(STATUS_CODES.BAD_REQUEST).json(response);
         return
     } catch (error) {
-        res.status(500).json(errorResponse((error as Error).message, null))
+        res.status(STATUS_CODES.SERVER_ERROR).json(errorResponse((error as Error).message, null, STATUS_CODES.SERVER_ERROR))
     }
 };
 
@@ -57,10 +56,10 @@ export const refreshTokenController = async (req: Request, res: Response) => {
     if (response.success) {
         res.cookie('accessToken', response.data.access_token, COOKIE_OPTIONS);
 
-        res.status(200).json(response);
+        res.status(STATUS_CODES.CREATED).json(response);
         return
     }
-    res.status(401).json(response);
+    res.status(STATUS_CODES.BAD_REQUEST).json(response);
     return
 };
 
@@ -70,10 +69,10 @@ export const logoutUserController = async (req: Request, res: Response) => {
         res.clearCookie('refreshToken');
         const logoutData: string = req.params.id
         const response = await logoutUserService(logoutData);
-        res.status(200).json(response);
+        res.status(STATUS_CODES.OK).json(response);
         return
     } catch (error) {
-        res.status(500).json({ success: false, message: (error as Error).message });
+        res.status(STATUS_CODES.BAD_REQUEST).json({ success: false, message: (error as Error).message });
     }
 };
 
@@ -82,17 +81,17 @@ export const verifyOtpController = async (req: Request, res: Response) => {
     try {
         const { email, otp } = req.body;
         if (!email || !otp) {
-            res.status(400).json(errorResponse("Email and OTP are required", { status: STATUS_CODES.BAD_REQUEST }));
+            res.status(400).json(errorResponse("Email and OTP are required", null, STATUS_CODES.BAD_REQUEST ));
             return
         }
         const response = await verifyOtpService(email, otp);
         if (response.success) {
             res.cookie('accessToken', response.data.access_token, COOKIE_OPTIONS);
             res.cookie('refreshToken', response.data.refresh_token, COOKIE_OPTIONS);
-            res.status(200).json(response);
+            res.status(STATUS_CODES.OK).json(response);
             return
         }
     } catch (error) {
-        res.status(500).json(errorResponse((error as Error).message, { status: STATUS_CODES.SERVER_ERROR }));
+        res.status(500).json(errorResponse((error as Error).message, null,  STATUS_CODES.SERVER_ERROR ));
     }
 };

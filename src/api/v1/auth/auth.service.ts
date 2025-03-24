@@ -18,17 +18,17 @@ import mongoose from 'mongoose';
 export const refreshTokenService = async (data: refreshTokenDto) => {
 
     const tokenValidation = refreshTokenSchema.safeParse(data)
-    if (!tokenValidation.success) return errorResponse(tokenValidation.error.errors[0].message, null)
+    if (!tokenValidation.success) return errorResponse(tokenValidation.error.errors[0].message, null, null)
 
     try {
         const decoded = jwt.verify(data.refresh_token, ENV.JWT_REFRESH_SECRET) as { id: string, roleId: number };
         const user = await User.findById(decoded.id);
-        if (!user) return errorResponse(MESSAGES.USER_NOT_FOUND, null);
+        if (!user) return errorResponse(MESSAGES.USER_NOT_FOUND, null, null);
 
         const newAccessToken = await generateAccessToken(user)
-        return successResponse(MESSAGES.REFRESH_TOKEN_SUCCESS, { accessToken: newAccessToken, status: STATUS_CODES.OK })
+        return successResponse(MESSAGES.REFRESH_TOKEN_SUCCESS, { accessToken: newAccessToken }, STATUS_CODES.OK)
     } catch (error) {
-        return errorResponse(MESSAGES.REFRESH_TOKEN_FAILED, { status: STATUS_CODES.BAD_REQUEST });
+        return errorResponse(MESSAGES.REFRESH_TOKEN_FAILED, null, STATUS_CODES.BAD_REQUEST);
     }
 };
 
@@ -38,7 +38,7 @@ export const registerUserService = async (data: CreateUserDto) => {
     const validation = createUserSchema.safeParse(data);
     if (!validation.success) {
         console.log(validation.error.errors);
-        return errorResponse(validation.error.errors.map(err => err.message).join(', '), null)
+        return errorResponse(validation.error.errors.map(err => err.message).join(', '), null, null)
     }
 
     const { username, email, password } = data;
@@ -48,13 +48,13 @@ export const registerUserService = async (data: CreateUserDto) => {
         const exists = await User.findOne({ $or: [{ username }, { email }] });
         if (exists) {
             if (exists.username === username) {
-                return errorResponse(MESSAGES.USERNAME_EXISTS, null);
+                return errorResponse(MESSAGES.USERNAME_EXISTS, null, null);
             } else {
-                return errorResponse(MESSAGES.EMAIL_EXISTS, null);
+                return errorResponse(MESSAGES.EMAIL_EXISTS, null, null);
             }
         }
         const role = await Role.findOne({ roleId: 2 })
-        if (!role) return errorResponse(MESSAGES.ROLE_NOT_FOUND, null); // default role when register:  Role (roleId 2)
+        if (!role) return errorResponse(MESSAGES.ROLE_NOT_FOUND, null, null); // default role when register:  Role (roleId 2)
 
         //hashPass
         const salt = await bcrypt.genSalt(10);
@@ -73,26 +73,26 @@ export const registerUserService = async (data: CreateUserDto) => {
         const accessToken = await generateAccessToken({ _id: user._id, roleId: user.roleId });
         const refreshToken = await generateRefreshToken({ _id: user._id, roleId: user.roleId });
 
-        return successResponse(MESSAGES.REGISTER_SUCCESS, { access_token: accessToken, refresh_token: refreshToken, status: STATUS_CODES.CREATED });
+        return successResponse(MESSAGES.REGISTER_SUCCESS, { access_token: accessToken, refresh_token: refreshToken }, null);
     } catch (error) {
-        return errorResponse(MESSAGES.REGISTER_FAILED, { status: STATUS_CODES.BAD_REQUEST });
+        return errorResponse(MESSAGES.REGISTER_FAILED, null, null);
     }
 }
 
 export const loginUserService = async (data: LoginUserDto) => {
     const validation = loginUserSchema.safeParse(data);
-    if (!validation.success) return errorResponse(validation.error.errors[0].message, null)
+    if (!validation.success) return errorResponse(validation.error.errors[0].message, null, null)
 
     const { username, password } = data
     try {
         const user = await User.findOne({ username })
         if (!user) {
-            return errorResponse(MESSAGES.INVALID_DATA, null);
+            return errorResponse(MESSAGES.INVALID_DATA, null, null);
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            return errorResponse(MESSAGES.INVALID_CREDENTIALS, { status: STATUS_CODES.BAD_REQUEST });
+            return errorResponse(MESSAGES.INVALID_CREDENTIALS, null, null);
         }
 
         // Trusted device feature by refreshToken
@@ -104,8 +104,7 @@ export const loginUserService = async (data: LoginUserDto) => {
             return successResponse(MESSAGES.LOGIN_SUCCESS, {
                 access_token: accessToken,
                 refresh_token: storedRefreshToken,
-                status: STATUS_CODES.OK
-            });
+            }, null);
         }
 
         // OTP
@@ -113,20 +112,20 @@ export const loginUserService = async (data: LoginUserDto) => {
         const storedOtp = await redisClient.get(otpKey);
 
         if (storedOtp) {
-            return errorResponse(MESSAGES.OTP_ALREADY_SENT, { status: STATUS_CODES.OK });
+            return errorResponse(MESSAGES.OTP_ALREADY_SENT, null, null);
         }
         await generateAndSendOtpService(user.email);
-        return errorResponse(MESSAGES.OTP_SENT, { status: STATUS_CODES.OK });
+        return errorResponse(MESSAGES.OTP_SENT, null, null);
 
     } catch (error) {
         console.error('Error logging in:', error);
-        return errorResponse(MESSAGES.LOGIN_FAILED, { status: STATUS_CODES.SERVER_ERROR })
+        return errorResponse(MESSAGES.LOGIN_FAILED, null, null)
     }
 };
 
 //// Logout
-export const logoutUserService = async (dataId:  string) => {
+export const logoutUserService = async (dataId: string) => {
     const refreshKey = `refresh:${dataId}`
     await redisClient.del(refreshKey);
-    return successResponse(MESSAGES.LOG_OUT_SUCCESS, { status: STATUS_CODES.OK });
+    return successResponse(MESSAGES.LOG_OUT_SUCCESS, null, null);
 };
