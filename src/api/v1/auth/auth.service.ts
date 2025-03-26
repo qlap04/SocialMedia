@@ -1,50 +1,111 @@
-import { LoginUserDto, loginUserSchema } from './dto/loginUser.dto';
-import { IUser } from "../interfaces/IEntities";
-import User from "./entities/user.entity";
-import Role from "./entities/role.entity";
-import bcrypt from "bcryptjs"
-import { successResponse, errorResponse } from "../common/response";
-import { MESSAGES, STATUS_CODES } from "../common/constants"
-import jwt from 'jsonwebtoken';
-import { ENV } from '../../../shared/config/env.config'
-import { refreshTokenDto, refreshTokenSchema } from "./dto/refreshToken.dto";
-import { generateAccessToken, generateRefreshToken } from "../common/utils/token.util";
-import { CreateUserDto, createUserSchema } from "./dto/createUser.dto";
 import { redisClient } from '../../../shared/config/redis.config';
-import { generateAndSendOtpService } from './otp.service';
+import User from '../auth/entities/user.entity';
+import { errorResponse, successResponse } from '../common/response';
+import { generateAndSendOtpService, verifyOtpService } from './otp.service';
+import { MESSAGES, STATUS_CODES } from '../common/constants';
+import { generateAccessToken, generateRefreshToken } from '../common/utils/token.util';
+import { LoginUserDto, loginUserSchema } from './dto/loginUser.dto';
+import { refreshTokenDto, refreshTokenSchema } from './dto/refreshToken.dto';
+import { CreateUserDto, createUserSchema } from './dto/createUser.dto';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { ENV } from '../../../shared/config/env.config';
 import mongoose from 'mongoose';
+import Role from './entities/role.entity';
 
-//Authentication
-export const refreshTokenService = async (data: refreshTokenDto) => {
+// Forgot Password: Request OTP
+const forgotPasswordService = async (email: string) => {
+    try {
+        const response = await generateAndSendOtpService(email, 'reset'); // Use key prefix "reset"
+        return response;
+    } catch (error) {
+        console.error('Error in forgot password service:', error);
+        return errorResponse(MESSAGES.OTP_SEND_FAILED, null, null);
+    }
+};
 
-    const tokenValidation = refreshTokenSchema.safeParse(data)
-    if (!tokenValidation.success) return errorResponse(tokenValidation.error.errors[0].message, null, null)
+// Forgot Password: Verify OTP
+const verifyForgotPasswordOtpService = async (email: string, otp: string) => {
+    try {
+        const response = await verifyOtpService(email, otp, 'reset'); // 
+        if (!response.success) {
+            return errorResponse(MESSAGES.OTP_VERIFY_FAILED, response, STATUS_CODES.SERVER_ERROR);
+        }
+        return successResponse(MESSAGES.OTP_VERIFY_SUCCESS, null, null);
+    } catch (error) {
+        console.error('Error verifying OTP for forgot password:', error);
+        return errorResponse(MESSAGES.OTP_VERIFY_FAILED, null, STATUS_CODES.SERVER_ERROR);
+    }
+};
+
+// Reset Password
+const resetPasswordService = async (email: string, otp: string, newPassword: string) => {
+    try {
+        const user = await User.findOne({ email });
+        if (!user) {
+            return errorResponse(MESSAGES.USER_NOT_FOUND, null, null);
+        }
+
+        const otpKey = `reset:${user._id}`;
+        const storedOtp = await redisClient.get(otpKey);
+
+        if (!storedOtp) {
+            return errorResponse(MESSAGES.OTP_EXPIRED_OR_NOT_FOUND, null, null);
+        }
+
+        if (storedOtp !== otp) {
+            return errorResponse(MESSAGES.OTP_VERIFY_FAILED, null, null);
+        }
+
+        // Hash pass
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // update
+        user.password = hashedPassword;
+        await user.save();
+
+        // delete OTP in Redis
+        await redisClient.del(otpKey);
+
+        // delete refresh token (log out from all device)
+        const refreshKey = `refresh:${user._id}`;
+        await redisClient.del(refreshKey);
+
+        return successResponse("Password has updated", null, null);
+    } catch (error) {
+        console.error('Error resetting password:', error);
+        return errorResponse("Error resetting password:", null, STATUS_CODES.SERVER_ERROR);
+    }
+};
+
+
+const refreshTokenService = async (data: refreshTokenDto) => {
+    const tokenValidation = refreshTokenSchema.safeParse(data);
+    if (!tokenValidation.success) return errorResponse(tokenValidation.error.errors[0].message, null, null);
 
     try {
         const decoded = jwt.verify(data.refresh_token, ENV.JWT_REFRESH_SECRET) as { id: string, roleId: number };
         const user = await User.findById(decoded.id);
         if (!user) return errorResponse(MESSAGES.USER_NOT_FOUND, null, null);
 
-        const newAccessToken = await generateAccessToken(user)
-        return successResponse(MESSAGES.REFRESH_TOKEN_SUCCESS, { accessToken: newAccessToken }, STATUS_CODES.OK)
+        const newAccessToken = await generateAccessToken({ _id: user._id, roleId: user.roleId });
+        return successResponse(MESSAGES.REFRESH_TOKEN_SUCCESS, { accessToken: newAccessToken }, STATUS_CODES.OK);
     } catch (error) {
         return errorResponse(MESSAGES.REFRESH_TOKEN_FAILED, null, STATUS_CODES.BAD_REQUEST);
     }
 };
 
-
-//Register
-export const registerUserService = async (data: CreateUserDto) => {
+const registerUserService = async (data: CreateUserDto) => {
     const validation = createUserSchema.safeParse(data);
     if (!validation.success) {
         console.log(validation.error.errors);
-        return errorResponse(validation.error.errors.map(err => err.message).join(', '), null, null)
+        return errorResponse(validation.error.errors.map(err => err.message).join(', '), null, null);
     }
 
     const { username, email, password } = data;
 
     try {
-        //Exception
         const exists = await User.findOne({ $or: [{ username }, { email }] });
         if (exists) {
             if (exists.username === username) {
@@ -53,20 +114,18 @@ export const registerUserService = async (data: CreateUserDto) => {
                 return errorResponse(MESSAGES.EMAIL_EXISTS, null, null);
             }
         }
-        const role = await Role.findOne({ roleId: 2 })
-        if (!role) return errorResponse(MESSAGES.ROLE_NOT_FOUND, null, null); // default role when register:  Role (roleId 2)
+        const role = await Role.findOne({ roleId: 2 });
+        if (!role) return errorResponse(MESSAGES.ROLE_NOT_FOUND, null, null);
 
-        //hashPass
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        //create User
         const newUser = new User({
             username: username,
             email: email,
             password: hashedPassword,
             roleId: 2
-        })
+        });
 
         const user = await newUser.save();
 
@@ -77,15 +136,15 @@ export const registerUserService = async (data: CreateUserDto) => {
     } catch (error) {
         return errorResponse(MESSAGES.REGISTER_FAILED, null, null);
     }
-}
+};
 
-export const loginUserService = async (data: LoginUserDto) => {
+const loginUserService = async (data: LoginUserDto) => {
     const validation = loginUserSchema.safeParse(data);
-    if (!validation.success) return errorResponse(validation.error.errors[0].message, null, null)
+    if (!validation.success) return errorResponse(validation.error.errors[0].message, null, null);
 
-    const { username, password } = data
+    const { username, password } = data;
     try {
-        const user = await User.findOne({ username })
+        const user = await User.findOne({ username });
         if (!user) {
             return errorResponse(MESSAGES.INVALID_DATA, null, null);
         }
@@ -95,7 +154,6 @@ export const loginUserService = async (data: LoginUserDto) => {
             return errorResponse(MESSAGES.INVALID_CREDENTIALS, null, null);
         }
 
-        // Trusted device feature by refreshToken
         const refreshKey = `refresh:${user._id}`;
         const storedRefreshToken = await redisClient.get(refreshKey);
 
@@ -107,7 +165,6 @@ export const loginUserService = async (data: LoginUserDto) => {
             }, null);
         }
 
-        // OTP
         const otpKey = `otp:${user._id}`;
         const storedOtp = await redisClient.get(otpKey);
 
@@ -116,16 +173,26 @@ export const loginUserService = async (data: LoginUserDto) => {
         }
         await generateAndSendOtpService(user.email);
         return errorResponse(MESSAGES.OTP_SENT, null, null);
-
     } catch (error) {
         console.error('Error logging in:', error);
-        return errorResponse(MESSAGES.LOGIN_FAILED, null, null)
+        return errorResponse(MESSAGES.LOGIN_FAILED, null, null);
     }
 };
 
-//// Logout
-export const logoutUserService = async (dataId: string) => {
-    const refreshKey = `refresh:${dataId}`
+const logoutUserService = async (dataId: string) => {
+    const refreshKey = `refresh:${dataId}`;
     await redisClient.del(refreshKey);
     return successResponse(MESSAGES.LOG_OUT_SUCCESS, null, null);
+};
+
+export {
+    generateAndSendOtpService,
+    verifyOtpService,
+    refreshTokenService,
+    registerUserService,
+    loginUserService,
+    logoutUserService,
+    forgotPasswordService,
+    verifyForgotPasswordOtpService,
+    resetPasswordService,
 };
