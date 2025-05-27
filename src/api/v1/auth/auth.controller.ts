@@ -8,6 +8,7 @@ import {
     verifyForgotPasswordOtpService,
     resetPasswordService,
 } from "./auth.service";
+
 import { generateAndSendOtpService, verifyOtpService } from "./otp.service";
 import { MESSAGES, STATUS_CODES } from "../common/constants";
 import { CreateUserDto } from "./dto/createUser.dto";
@@ -52,18 +53,18 @@ export const loginUserController = async (req: Request, res: Response) => {
 };
 
 export const refreshTokenController = async (req: Request, res: Response) => {
-    console.log('Cookies:', req.cookies);
-    const { refreshToken } = req.cookies;
-    const response = await refreshTokenService(refreshToken);
+    const { refresh_token } = req.body; // Lấy từ body
+    console.log('Refresh token from body:', refresh_token);
+
+    const response = await refreshTokenService({ refresh_token }); // Truyền object đúng định dạng
 
     if (response.success) {
-        res.cookie('accessToken', response.data.access_token, COOKIE_OPTIONS);
-
+        res.cookie('accessToken', response.data.accessToken, COOKIE_OPTIONS);
         res.status(STATUS_CODES.CREATED).json(response);
-        return
+        return;
     }
     res.status(STATUS_CODES.BAD_REQUEST).json(response);
-    return
+    return;
 };
 
 export const logoutUserController = async (req: Request, res: Response) => {

@@ -36,26 +36,43 @@ export interface IContactRequest extends Document {
     senderId: mongoose.Types.ObjectId[];
 }
 
-export interface ILikeList extends Document {
+export interface ILike extends Document {
     userId: mongoose.Types.ObjectId;
-    postList: mongoose.Types.ObjectId[];
-    reelList: mongoose.Types.ObjectId[];
+    postId: mongoose.Types.ObjectId;
 }
 
-export interface IPost extends Document {
+export interface IPost {
     userId: mongoose.Types.ObjectId;
     title: string;
-    media_url: string[]
-    commentList: mongoose.Types.ObjectId[];
-    likeList: mongoose.Types.ObjectId[];
+    media?: string[];
+    status: 'private' | 'friends' | 'public';
+    likesCount: number;
+    commentsCount: number;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
-export interface IComment extends Document {
+export interface IComment {
+    userId: mongoose.Types.ObjectId;
+    postId: mongoose.Types.ObjectId;
     content: string;
-    likeList: mongoose.Types.ObjectId[]
+    createdAt: Date;
+    updatedAt: Date;
 }
 
-export interface IMessage extends Document {
+export interface INotification {
+    userId: mongoose.Types.ObjectId;
+    senderId: mongoose.Types.ObjectId;
+    type: 'LIKE' | 'COMMENT' | 'FRIEND_REQUEST';
+    message: string;
+    actionData?: any;
+    isRead: boolean;
+    createdAt: Date;
+}
+export interface IMessage {
+    senderId: mongoose.Types.ObjectId;
     receiverId: mongoose.Types.ObjectId;
-    senderId: mongoose.Types.ObjectId[];
+    content: string;
+    isRead: boolean;
+    createdAt: Date;
 }

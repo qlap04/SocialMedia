@@ -4,7 +4,7 @@ import Contact from './entities/contact.entity';
 import { errorResponse, successResponse } from '../common/response';
 import { MESSAGES, STATUS_CODES } from '../common/constants';
 import { IFriendship, IContactRequest } from '../interfaces/IEntities';
-
+import { IPost } from '../interfaces/IEntities';
 
 export const sendFriendRequestService = async (senderId: string, receiverId: string) => {
     try {
@@ -104,18 +104,23 @@ export const rejectFriendRequestService = async (userId: string, requestId: stri
     }
 }
 
-export const getFriendListService = async (userId: string) => {
+export const getFriendListService = async (userId: string, page: number = 1, limit: number = 10) => {
     try {
-        const friendship = await Friendship.findOne({ userId }).populate('friendList', 'username email');
+        const skip = (page - 1) * limit;
+        const friendship = await Friendship.findOne({ userId })
+            .populate({
+                path: 'friendList',
+                select: 'username email',
+                options: { skip, limit },
+            });
         if (!friendship) {
             return successResponse('Friend list retrieved', [], STATUS_CODES.OK);
         }
-
         return successResponse('Friend list retrieved', friendship.friendList, STATUS_CODES.OK);
     } catch (error) {
         return errorResponse(error.message || 'Internal server error', null, STATUS_CODES.SERVER_ERROR);
     }
-}
+};
 
 export const unfriendService = async (userId: string, friendId: string) => {
     try {
@@ -158,3 +163,30 @@ export const getFriendRequestsService = async (userId: string) => {
         return errorResponse(error.message || 'Internal server error', null, STATUS_CODES.SERVER_ERROR);
     }
 }
+
+
+export const canInteractWithPost = async (userId: string, post: IPost): Promise<boolean> => {
+    // Nếu bài viết là public, ai cũng có thể tương tác
+    if (post.status === 'public') {
+        return true;
+    }
+
+    // Nếu bài viết là private, chỉ người tạo mới có thể tương tác
+    if (post.status === 'private') {
+        return userId === post.userId.toString();
+    }
+
+    // Nếu bài viết là friends, chỉ bạn bè hoặc người tạo mới có thể tương tác
+    if (post.status === 'friends') {
+        if (userId === post.userId.toString()) {
+            return true;
+        }
+        const friendship = await Friendship.findOne({ userId: post.userId });
+        if (!friendship) {
+            return false;
+        }
+        return friendship.friendList.some((friendId) => friendId.toString() === userId);
+    }
+
+    return false;
+};
